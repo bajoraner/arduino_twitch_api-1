@@ -16,3 +16,4 @@ This is a fork from [witnessmenow](https://github.com/witnessmenow/arduino_twitc
 2020-06-06 by bajoraner:
 - implementating Twitch AccessToken
 - updating to JSON Lib v6
+- add Sample subscriptions (For get last subscriber)
