@@ -21,11 +21,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
-#include <Client.h>
+#include <WiFiClientSecure.h>
 
 #define TWITCH_HOST "api.twitch.tv"
 // Fingerprint correct as of October 6th 2018
-#define TWITCH_FINGERPRINT "BC 73 A5 9C 6E EE 38 43 A6 37 FC 32 CF 08 16 DC CF F1 5A 66"
+#define TWITCH_FINGERPRINT "E1 47 BE 55 5E BC DA 06 DF 51 8C 53 0E 94 F8 0F 4B 00 6F BF"
 #define TWITCH_TIMEOUT 1500
 
 struct UserData
@@ -71,18 +71,19 @@ struct StreamInfo
 class TwitchApi
 {
   public:
-    TwitchApi(Client &client, char *clientId);
+    TwitchApi(WiFiClientSecure &client, char *clientId, char *accesstoken);
     bool makeGetRequestWithClientId(char *command);
     UserData getUserData(char *loginName);
     FollowerData getFollowerData(char *id);
-    StreamInfo getStreamInfo(char *loginName);
+    StreamInfo getStreamInfo(const char *loginName);
     int portNumber = 443;
     //bool _checkFingerPrint = true; //Fail request if fingerprint doesnt match
     bool _debug = false;
-    Client *client;
+    WiFiClientSecure *client;
 
   private:
     char *_clientId;
+    char *_accesstoken;
     void closeClient();
 };
 

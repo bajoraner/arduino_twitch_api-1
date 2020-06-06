@@ -20,15 +20,16 @@
 
 #include "TwitchApi.h"
 
-TwitchApi::TwitchApi(Client &client, char *clientId)
+TwitchApi::TwitchApi(WiFiClientSecure &client, char *clientId, char *accesstoken)
 {
     this->client = &client;
     this->_clientId = clientId;
+    this->_accesstoken = accesstoken;
 }
 
 bool TwitchApi::makeGetRequestWithClientId(char *command)
 {
-
+	//client->setInsecure();
     client->setTimeout(5000);
     if (!client->connect(TWITCH_HOST, portNumber))
     {
@@ -36,17 +37,25 @@ bool TwitchApi::makeGetRequestWithClientId(char *command)
         return false;
     }
 
-    //Serial.println(F("Connected!"));
+    Serial.println(F("TLS Connected!"));
 
-    // Default client doesnt have a verify, need to figure something else out.
-    // if (_checkFingerPrint && !client->verify(TWITCH_FINGERPRINT, TWITCH_HOST))
-    // {
-    //     Serial.println(F("certificate doesn't match"));
-    //     return false;
-    // }
+
+	//TLS
+	if (client->verifyCertChain(TWITCH_HOST))
+	{
+		Serial.println("Server certificate verified");
+	} else {
+		Serial.println("ERROR: certificate verification failed!");
+		return false;
+	}
 
     // give the esp a breather
     yield();
+
+	if (!client->connect(TWITCH_HOST, 443)){
+		Serial.println("Connection failed!");
+		return false;
+	}
 
     // Send HTTP request
     client->print(F("GET "));
@@ -59,6 +68,9 @@ bool TwitchApi::makeGetRequestWithClientId(char *command)
 
     client->print(F("Client-ID: "));
     client->println(_clientId);
+
+    client->print(F("Authorization: Bearer "));
+    client->println(_accesstoken);
 
     client->println(F("Cache-Control: no-cache"));
 
@@ -106,14 +118,19 @@ UserData TwitchApi::getUserData(char *loginName)
     if (makeGetRequestWithClientId(command))
     {
         // Allocate JsonBuffer
-        DynamicJsonBuffer jsonBuffer(bufferSize);
+        DynamicJsonDocument root(bufferSize);
 
         // Parse JSON object
-        JsonObject &root = jsonBuffer.parseObject(*client);
-        if (root.success())
+        DeserializationError error = deserializeJson(root, *client);
+        if (error)
+        {
+            Serial.print(F("getUserData deserializeJson() failed: "));
+            Serial.println(error.c_str());
+        }
+        else
         {
             // clang-format off
-            JsonObject &data0 = root["data"][0];
+            JsonObject data0 = root["data"][0];
             user.id = (char *)data0["id"].as<char*>();
             user.login = (char *)data0["login"].as<char*>();
             user.displayName = (char *)data0["display_name"].as<char*>();
@@ -125,8 +142,6 @@ UserData TwitchApi::getUserData(char *loginName)
             user.viewCount = data0["view_count"].as<long>();
             user.error = false;
             // clang-format on
-        } else {
-            Serial.println(F("Parsing failed!")); 
         }
 
     }
@@ -144,22 +159,27 @@ FollowerData TwitchApi::getFollowerData(char *id)
     }
 
     // Use arduinojson.org/assistant to compute the capacity.
-    const size_t bufferSize = JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(3) + JSON_OBJECT_SIZE(5);
+    const size_t bufferSize = JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(3) + JSON_OBJECT_SIZE(5) + 1000;
 
     FollowerData follower;
     follower.error = true;
     if (makeGetRequestWithClientId(command))
     {
         // Allocate JsonBuffer
-        DynamicJsonBuffer jsonBuffer(bufferSize);
+        DynamicJsonDocument root(bufferSize);
 
         // Parse JSON object
-        JsonObject &root = jsonBuffer.parseObject(*client);
-        if (root.success())
+        DeserializationError error = deserializeJson(root, *client);
+        if (error)
+        {
+            Serial.print(F("getFollowerData deserializeJson() failed: "));
+            Serial.println(error.c_str());
+        }
+        else
         {
             // clang-format off
             follower.total = root["total"].as<long>();
-            JsonObject &data0 = root["data"][0];
+            JsonObject data0 = root["data"][0];
             follower.fromId = (char *)data0["from_id"].as<char*>();
             follower.fromName = (char *)data0["from_name"].as<char*>();
             follower.toId = (char *)data0["to_id"].as<char*>();
@@ -167,8 +187,6 @@ FollowerData TwitchApi::getFollowerData(char *id)
             follower.followedAt = (char *)data0["followed_at"].as<char*>();
             follower.error = false;
             // clang-format on
-        } else {
-            Serial.println(F("Parsing failed!"));
         }
     }
 
@@ -176,7 +194,7 @@ FollowerData TwitchApi::getFollowerData(char *id)
     return follower;
 }
 
-StreamInfo TwitchApi::getStreamInfo(char *loginName)
+StreamInfo TwitchApi::getStreamInfo(const char *loginName)
 {
     char command[100] = "/helix/streams?user_login=";
     strcat(command, loginName);
@@ -186,22 +204,27 @@ StreamInfo TwitchApi::getStreamInfo(char *loginName)
     }
 
     // Use arduinojson.org/assistant to compute the capacity.
-    const size_t bufferSize = JSON_ARRAY_SIZE(1) + JSON_ARRAY_SIZE(3) + JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(11);
+    const size_t bufferSize = JSON_ARRAY_SIZE(1) + JSON_ARRAY_SIZE(3) + JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(11) + 1000;
 
     StreamInfo stream;
     stream.error = true;
     if (makeGetRequestWithClientId(command))
     {
         // Allocate JsonBuffer
-        DynamicJsonBuffer jsonBuffer(bufferSize);
+        DynamicJsonDocument root(bufferSize);
 
         // Parse JSON object
-        JsonObject &root = jsonBuffer.parseObject(*client);
-        if (root.success())
+        DeserializationError error = deserializeJson(root, *client);
+        if (error)
+        {
+            Serial.print(F("getStreamInfo deserializeJson() failed: "));
+            Serial.println(error.c_str());
+        }
+        else
         {
             if(root["data"].size() > 0){
                 // clang-format off
-                JsonObject &data0 = root["data"][0];
+                JsonObject data0 = root["data"][0];
                 stream.id = (char *)data0["id"].as<char*>();
                 stream.userId = (char *)data0["user_id"].as<char*>();
                 stream.userName = (char *)data0["user_name"].as<char*>();
@@ -218,8 +241,6 @@ StreamInfo TwitchApi::getStreamInfo(char *loginName)
             } else {
                 Serial.println(F("No Streams found!"));
             }
-        } else {
-            Serial.println(F("Parsing failed!"));
         }
     }
 
