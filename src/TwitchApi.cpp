@@ -194,6 +194,56 @@ FollowerData TwitchApi::getFollowerData(char *id)
     return follower;
 }
 
+SubscriptionData TwitchApi::getSubscriptionData(char *id)
+{
+    char command[100] = "/helix/subscriptions?broadcaster_id=";
+    strcat(command, id);
+    strcat(command, "&first=1");
+    if (_debug) {
+        Serial.println(command);
+    }
+
+    // Use arduinojson.org/assistant to compute the capacity.
+    const size_t bufferSize = JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(3) + JSON_OBJECT_SIZE(5) + 1000;
+
+    SubscriptionData subscriptions;
+    subscriptions.error = true;
+    if (makeGetRequestWithClientId(command))
+    {
+        // Allocate JsonBuffer
+        DynamicJsonDocument root(bufferSize);
+
+        // Parse JSON object
+        DeserializationError error = deserializeJson(root, *client);
+        if (error)
+        {
+            Serial.print(F("getSubscriptionData deserializeJson() failed: "));
+            Serial.println(error.c_str());
+        }
+        else
+        {
+            // clang-format off
+            JsonObject data0 = root["data"][0];
+            subscriptions.broadcaster_id = (char *)data0["broadcaster_id"].as<char*>();
+            subscriptions.broadcaster_name = (char *)data0["broadcaster_name"].as<char*>();
+            subscriptions.is_gift = data0["is_gift"].as<bool>();
+            subscriptions.tier = (char *)data0["tier"].as<char*>();
+            subscriptions.plan_name = (char *)data0["plan_name"].as<char*>();
+            subscriptions.user_id = (char *)data0["user_id"].as<char*>();
+            subscriptions.user_name = (char *)data0["user_name"].as<char*>();
+            if (subscriptions.is_gift) {
+              subscriptions.gifter_id = (char *)data0["gifter_id"].as<char*>();
+              subscriptions.gifter_name = (char *)data0["gifter_name"].as<char*>();
+            }
+            subscriptions.error = false;
+            // clang-format on
+        }
+    }
+
+    closeClient();
+    return subscriptions;
+}
+
 StreamInfo TwitchApi::getStreamInfo(const char *loginName)
 {
     char command[100] = "/helix/streams?user_login=";

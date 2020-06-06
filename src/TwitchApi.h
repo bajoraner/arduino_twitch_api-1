@@ -53,6 +53,19 @@ struct FollowerData
     bool error;
 };
 
+struct SubscriptionData
+{
+    char *broadcaster_id;
+    char *broadcaster_name;
+    bool is_gift;
+    char *tier;
+    char *plan_name;
+    char *user_id;
+    char *user_name;
+    char *gifter_id;
+    char *gifter_name;
+    bool error;
+};
 struct StreamInfo
 {
     char *id;
@@ -75,6 +88,7 @@ class TwitchApi
     bool makeGetRequestWithClientId(char *command);
     UserData getUserData(char *loginName);
     FollowerData getFollowerData(char *id);
+    SubscriptionData getSubscriptionData(char *id);
     StreamInfo getStreamInfo(const char *loginName);
     int portNumber = 443;
     //bool _checkFingerPrint = true; //Fail request if fingerprint doesnt match
