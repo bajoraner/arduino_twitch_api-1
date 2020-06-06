@@ -13,6 +13,6 @@ This is a fork from [witnessmenow](https://github.com/witnessmenow/arduino_twitc
 - follower (For getting follower count)
 - stream (For getting live viewer count - See getStreamInfo)
 
-2020-06-06:
+2020-06-06 by bajoraner:
 - implementating Twitch AccessToken
 - updating to JSON Lib v6
